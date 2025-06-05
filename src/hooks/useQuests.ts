@@ -1,0 +1,181 @@
+import { useState, useEffect, useCallback } from 'react';
+import { Quest } from '@/types/database';
+import { db } from '@/lib/supabase';
+import { useAuth } from '@/components/providers/AuthProvider';
+import toast from 'react-hot-toast';
+
+interface UseQuestsReturn {
+  quests: Quest[];
+  loading: boolean;
+  error: string | null;
+  activeQuests: Quest[];
+  completedQuests: Quest[];
+  createQuest: (questData: Omit<Quest, 'id' | 'created_at'>) => Promise<Quest | null>;
+  completeQuest: (questId: string) => Promise<boolean>;
+  deleteQuest: (questId: string) => Promise<boolean>;
+  refreshQuests: () => Promise<void>;
+  getQuestsByFilter: (filter: 'all' | 'active' | 'completed') => Quest[];
+}
+
+export function useQuests(): UseQuestsReturn {
+  const { user } = useAuth();
+  const [quests, setQuests] = useState<Quest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadQuests = useCallback(async () => {
+    if (!user) {
+      setQuests([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const { quests: userQuests, error: questError } = await db.getUserQuests(user.id);
+      
+      if (questError) {
+        throw new Error(questError.message || 'Failed to load quests');
+      }
+
+      setQuests(userQuests || []);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load quests';
+      setError(errorMessage);
+      console.error('Error loading quests:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadQuests();
+  }, [loadQuests]);
+
+  const createQuest = async (questData: Omit<Quest, 'id' | 'created_at'>): Promise<Quest | null> => {
+    if (!user) {
+      toast.error('You must be logged in to create quests');
+      return null;
+    }
+
+    try {
+      const { quest, error } = await db.createQuest({
+        ...questData,
+        user_id: user.id,
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to create quest');
+      }
+
+      if (quest) {
+        setQuests(prev => [quest, ...prev]);
+        return quest;
+      }
+
+      return null;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create quest';
+      toast.error(errorMessage);
+      console.error('Error creating quest:', err);
+      return null;
+    }
+  };
+
+  const completeQuest = async (questId: string): Promise<boolean> => {
+    try {
+      const { result, error } = await db.completeQuest(questId);
+
+      if (error) {
+        throw new Error(error.message || 'Failed to complete quest');
+      }
+
+      if (result?.success) {
+        // Update local state
+        setQuests(prev =>
+          prev.map(quest =>
+            quest.id === questId
+              ? { ...quest, status: 'completed' as const, completed_at: new Date().toISOString() }
+              : quest
+          )
+        );
+
+        // Show appropriate success message
+        const xpGained = result.xp_awarded;
+        const leveledUp = result.level_up;
+
+        if (leveledUp) {
+          toast.success(`🎊 LEVEL UP! You're now level ${result.new_level}! (+${xpGained} XP)`, {
+            duration: 6000,
+          });
+        } else {
+          toast.success(`⚡ Quest Complete! +${xpGained} XP`, {
+            duration: 4000,
+          });
+        }
+
+        return true;
+      }
+
+      return false;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to complete quest';
+      toast.error(errorMessage);
+      console.error('Error completing quest:', err);
+      return false;
+    }
+  };
+
+  const deleteQuest = async (questId: string): Promise<boolean> => {
+    try {
+      const { error } = await db.deleteQuest(questId);
+       
+      if (error) {
+        throw new Error(error.message || 'Failed to delete quest');
+      }
+
+      setQuests(prev => prev.filter(quest => quest.id !== questId));
+      toast.success('Quest removed from your adventure');
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete quest';
+      toast.error(errorMessage);
+      console.error('Error deleting quest:', err);
+      return false;
+    }
+  };
+
+  const refreshQuests = async (): Promise<void> => {
+    await loadQuests();
+  };
+
+  const getQuestsByFilter = (filter: 'all' | 'active' | 'completed'): Quest[] => {
+    switch (filter) {
+      case 'active':
+        return quests.filter(q => q.status === 'active');
+      case 'completed':
+        return quests.filter(q => q.status === 'completed');
+      default:
+        return quests;
+    }
+  };
+
+  // Computed values
+  const activeQuests = quests.filter(q => q.status === 'active');
+  const completedQuests = quests.filter(q => q.status === 'completed');
+
+  return {
+    quests,
+    loading,
+    error,
+    activeQuests,
+    completedQuests,
+    createQuest,
+    completeQuest,
+    deleteQuest,
+    refreshQuests,
+    getQuestsByFilter,
+  };
+}

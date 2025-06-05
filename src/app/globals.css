@@ -1,0 +1,206 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar styles */
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+  }
+
+  /* Focus states */
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+  }
+
+  /* Custom selection */
+  ::selection {
+    @apply bg-blue-500 text-white;
+  }
+}
+
+/* Custom components */
+@layer components {
+  /* Loading spinner */
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-transparent border-t-current;
+  }
+
+  /* Glass effect for modals */
+  .glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/20;
+  }
+
+  /* Quest completion celebration */
+  .celebration-particle {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: gold;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: particle-float 2s ease-out forwards;
+  }
+
+  @keyframes particle-float {
+    0% {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-100px) scale(0);
+      opacity: 0;
+    }
+  }
+
+  /* Quest card hover effects */
+  .quest-card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .quest-card-hover:hover {
+    transform: translateY(-2px) scale(1.02);
+  }
+
+  /* Level up animation */
+  .level-up-glow {
+    animation: level-up-pulse 2s ease-in-out;
+  }
+
+  @keyframes level-up-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
+    }
+    50% {
+      box-shadow: 0 0 0 20px rgba(255, 215, 0, 0);
+    }
+  }
+
+  /* XP gain animation */
+  .xp-gain {
+    animation: xp-bounce 0.6s ease-out;
+  }
+
+  @keyframes xp-bounce {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.2);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  /* Progress bar animations */
+  .progress-bar {
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Button press feedback */
+  .btn-press {
+    transition: transform 0.1s ease-in-out;
+  }
+
+  .btn-press:active {
+    transform: scale(0.98);
+  }
+
+  /* Floating action button */
+  .fab {
+    @apply fixed bottom-6 right-6 w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center z-50;
+  }
+
+  .fab:hover {
+    transform: scale(1.1);
+  }
+
+  /* Modal backdrop */
+  .modal-backdrop {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-40;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    @apply absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-sm text-white bg-gray-900 rounded shadow-lg opacity-0 pointer-events-none transition-opacity duration-200;
+  }
+
+  .tooltip-trigger:hover .tooltip {
+    @apply opacity-100;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  /* Text gradient */
+  .text-gradient {
+    @apply bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent;
+  }
+
+  /* Heroic text effect */
+  .text-heroic {
+    @apply text-gradient font-bold text-2xl;
+  }
+
+  /* Card shadows */
+  .shadow-soft {
+    box-shadow: 0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Animation delays for staggered effects */
+  .delay-75 {
+    animation-delay: 75ms;
+  }
+  .delay-150 {
+    animation-delay: 150ms;
+  }
+  .delay-300 {
+    animation-delay: 300ms;
+  }
+
+  /* Quest difficulty backgrounds */
+  .bg-quest-easy {
+    @apply bg-gradient-to-r from-green-500 to-emerald-600;
+  }
+  .bg-quest-medium {
+    @apply bg-gradient-to-r from-blue-500 to-purple-600;
+  }
+  .bg-quest-hard {
+    @apply bg-gradient-to-r from-purple-500 to-pink-600;
+  }
+  .bg-quest-epic {
+    @apply bg-gradient-to-r from-red-500 to-orange-600;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
