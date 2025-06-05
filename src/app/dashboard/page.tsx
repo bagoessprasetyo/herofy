@@ -20,8 +20,9 @@ import { UserProfile } from '@/components/UserProfile';
 import { AuthGuard } from '@/components/AuthGuard';
 import toast from 'react-hot-toast';
 import { useQuests } from '@/src/hooks/useQuests';
+import { Suspense } from 'react';
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const { 
@@ -54,8 +55,6 @@ export default function DashboardPage() {
   const handleQuestCompleted = async (questId: string) => {
     const success = await completeQuest(questId);
     if (success) {
-      // The useQuests hook handles the success messaging and state updates
-      // Refresh user profile to show updated level/XP
       setTimeout(() => {
         if (window.location.pathname === '/dashboard') {
           window.location.reload();
@@ -389,5 +388,20 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

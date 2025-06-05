@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function AuthDebugPage() {
+function AuthDebugContent() {
   const searchParams = useSearchParams();
   const [urlInfo, setUrlInfo] = useState<any>({});
 
@@ -57,5 +58,13 @@ export default function AuthDebugPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthDebugPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AuthDebugContent />
+    </Suspense>
   );
 }

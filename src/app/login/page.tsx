@@ -18,8 +18,9 @@ import {
 import { useAuth } from '@/components/providers/AuthProvider';
 import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 import toast from 'react-hot-toast';
+import { Suspense } from 'react';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, signIn, loading: authLoading } = useAuth();
@@ -81,7 +82,6 @@ export default function LoginPage() {
       if (error) {
         console.error('Login error:', error);
         
-        // Handle specific error types
         if (error.message?.includes('Invalid login credentials')) {
           setErrors({ general: 'Invalid email or password. Please check your credentials and try again.' });
         } else if (error.message?.includes('Email not confirmed')) {
@@ -92,7 +92,6 @@ export default function LoginPage() {
         return;
       }
       
-      // Success - user will be redirected by useEffect
       toast.success('Welcome back, Hero! 🎉');
       
     } catch (error) {
@@ -105,13 +104,11 @@ export default function LoginPage() {
 
   const handleInputChange = (field: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
-    // Clear errors when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
   };
 
-  // Show loading state while checking auth
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -321,5 +318,20 @@ export default function LoginPage() {
         </motion.div>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">Loading login page...</p>
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
