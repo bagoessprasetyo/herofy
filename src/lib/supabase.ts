@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-// import type { Database } from '@/types/supabase';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -74,11 +73,12 @@ export interface Database {
           status: 'active' | 'completed' | 'failed';
           difficulty: 'easy' | 'medium' | 'hard' | 'epic';
           category: string;
+          primary_stat: 'strength' | 'wisdom' | 'endurance' | 'charisma';
           completed_at: string | null;
           created_at: string;
         };
         Insert: {
-          id?: string;
+          id?: string; // Make ID optional so database can generate it
           user_id: string;
           title: string;
           description?: string | null;
@@ -87,6 +87,7 @@ export interface Database {
           status?: 'active' | 'completed' | 'failed';
           difficulty?: 'easy' | 'medium' | 'hard' | 'epic';
           category?: string;
+          primary_stat?: 'strength' | 'wisdom' | 'endurance' | 'charisma';
           completed_at?: string | null;
           created_at?: string;
         };
@@ -100,6 +101,7 @@ export interface Database {
           status?: 'active' | 'completed' | 'failed';
           difficulty?: 'easy' | 'medium' | 'hard' | 'epic';
           category?: string;
+          primary_stat?: 'strength' | 'wisdom' | 'endurance' | 'charisma';
           completed_at?: string | null;
           created_at?: string;
         };
@@ -140,6 +142,25 @@ export interface Database {
           old_level: number;
           new_level: number;
           level_up: boolean;
+          stat_improved: string;
+        };
+      };
+      create_quest_safe: {
+        Args: {
+          p_user_id: string;
+          p_title: string;
+          p_description: string;
+          p_original_task: string;
+          p_xp_reward?: number;
+          p_difficulty?: string;
+          p_category?: string;
+          p_primary_stat?: string;
+        };
+        Returns: {
+          success: boolean;
+          quest: any;
+          was_existing: boolean;
+          message: string;
         };
       };
     };
@@ -216,11 +237,44 @@ export const db = {
     return { quests: data, error };
   },
 
-  // Create a new quest
+  // Create a new quest using the safe database function
   createQuest: async (quest: Database['public']['Tables']['quests']['Insert']) => {
+    try {
+      const { data, error } = await supabase.rpc('create_quest_safe', {
+        p_user_id: quest.user_id,
+        p_title: quest.title,
+        p_description: quest.description || '',
+        p_original_task: quest.original_task,
+        p_xp_reward: quest.xp_reward || 50,
+        p_difficulty: quest.difficulty || 'medium',
+        p_category: quest.category || 'general',
+        p_primary_stat: quest.primary_stat || 'strength'
+      });
+
+      if (error) {
+        console.error('Database function error:', error);
+        return { quest: null, error };
+      }
+
+      if (data?.success) {
+        return { quest: data.quest, error: null };
+      } else {
+        return { quest: null, error: new Error(data?.message || 'Failed to create quest') };
+      }
+    } catch (err) {
+      console.error('Quest creation error:', err);
+      return { quest: null, error: err as Error };
+    }
+  },
+
+  // Fallback: Direct insert (only use if the function fails)
+  createQuestDirect: async (quest: Database['public']['Tables']['quests']['Insert']) => {
+    // Remove any id field to let database generate it
+    const { id, ...questWithoutId } = quest;
+    
     const { data, error } = await supabase
       .from('quests')
-      .insert(quest)
+      .insert(questWithoutId)
       .select()
       .single();
 
@@ -235,6 +289,7 @@ export const db = {
 
     return { result: data, error };
   },
+
   deleteQuest: async (questId: string) => {
     const { error } = await supabase
       .from('quests')

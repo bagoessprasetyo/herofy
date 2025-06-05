@@ -19,6 +19,7 @@ export interface Quest {
   status: 'active' | 'completed' | 'failed';
   difficulty: 'easy' | 'medium' | 'hard' | 'epic';
   category: string;
+  primary_stat: 'strength' | 'wisdom' | 'endurance' | 'charisma';
   completed_at?: string;
   created_at: string;
 }
@@ -37,6 +38,35 @@ export interface QuestGenerationResult {
   xp_reward: number;
   difficulty: 'easy' | 'medium' | 'hard' | 'epic';
   category: string;
+  primary_stat: 'strength' | 'wisdom' | 'endurance' | 'charisma';
+}
+
+// Quest completion result from database function
+export interface QuestCompletionResult {
+  success: boolean;
+  xp_awarded: number;
+  new_total_xp: number;
+  old_level: number;
+  new_level: number;
+  level_up: boolean;
+  stat_improved: 'strength' | 'wisdom' | 'endurance' | 'charisma';
+}
+
+// Quest creation result from database function
+export interface QuestCreationResult {
+  success: boolean;
+  quest: Quest;
+  was_existing: boolean;
+  message: string;
+}
+
+// Character stat types
+export type CharacterStat = 'strength' | 'wisdom' | 'endurance' | 'charisma';
+
+export interface StatInfo {
+  icon: string;
+  color: string;
+  name: string;
 }
 
 // Database Schema SQL for Supabase
@@ -67,6 +97,7 @@ CREATE TABLE public.quests (
   status VARCHAR DEFAULT 'active' CHECK (status IN ('active', 'completed', 'failed')),
   difficulty VARCHAR DEFAULT 'medium' CHECK (difficulty IN ('easy', 'medium', 'hard', 'epic')),
   category VARCHAR DEFAULT 'general',
+  primary_stat VARCHAR(20) DEFAULT 'strength' CHECK (primary_stat IN ('strength', 'wisdom', 'endurance', 'charisma')),
   completed_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW()
 );
@@ -85,7 +116,9 @@ CREATE TABLE public.user_stats (
 CREATE INDEX idx_quests_user_id ON public.quests(user_id);
 CREATE INDEX idx_quests_status ON public.quests(status);
 CREATE INDEX idx_quests_created_at ON public.quests(created_at DESC);
+CREATE INDEX idx_quests_primary_stat ON public.quests(primary_stat);
 CREATE INDEX idx_user_stats_user_id ON public.user_stats(user_id);
+CREATE UNIQUE INDEX idx_user_original_task_unique ON public.quests(user_id, original_task) WHERE status = 'active';
 
 -- Row Level Security (RLS) Policies
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
@@ -157,15 +190,25 @@ DECLARE
   new_level INTEGER;
   level_up BOOLEAN := FALSE;
 BEGIN
-  -- Get quest details
-  SELECT * INTO quest_record FROM public.quests WHERE id = quest_id AND status = 'active';
+  -- Lock the quest row to prevent concurrent completion
+  SELECT * INTO quest_record 
+  FROM public.quests 
+  WHERE id = quest_id AND status = 'active'
+  FOR UPDATE;
   
   IF NOT FOUND THEN
-    RETURN json_build_object('error', 'Quest not found or already completed');
+    RETURN json_build_object(
+      'success', false,
+      'error', 'Quest not found or already completed'
+    );
   END IF;
   
-  -- Get current user stats
-  SELECT * INTO user_record FROM public.users WHERE id = quest_record.user_id;
+  -- Get current user stats with row lock
+  SELECT * INTO user_record 
+  FROM public.users 
+  WHERE id = quest_record.user_id
+  FOR UPDATE;
+  
   old_level = user_record.level;
   
   -- Mark quest as completed
@@ -184,21 +227,20 @@ BEGIN
     level_up = TRUE;
   END IF;
   
-  -- Update relevant stats based on quest category
-  CASE quest_record.category
-    WHEN 'health' THEN
-      UPDATE public.user_stats SET stat_value = stat_value + 1, updated_at = NOW()
-      WHERE user_id = quest_record.user_id AND stat_name = 'endurance';
-    WHEN 'education' THEN
-      UPDATE public.user_stats SET stat_value = stat_value + 1, updated_at = NOW()
-      WHERE user_id = quest_record.user_id AND stat_name = 'wisdom';
-    WHEN 'career' THEN
-      UPDATE public.user_stats SET stat_value = stat_value + 1, updated_at = NOW()
-      WHERE user_id = quest_record.user_id AND stat_name = 'charisma';
-    ELSE
-      UPDATE public.user_stats SET stat_value = stat_value + 1, updated_at = NOW()
-      WHERE user_id = quest_record.user_id AND stat_name = 'strength';
-  END CASE;
+  -- Update the specific stat based on primary_stat field
+  UPDATE public.user_stats 
+  SET stat_value = stat_value + 1, updated_at = NOW()
+  WHERE user_id = quest_record.user_id 
+    AND stat_name = quest_record.primary_stat;
+  
+  -- If no rows were updated, create the stat entry
+  IF NOT FOUND THEN
+    INSERT INTO public.user_stats (user_id, stat_name, stat_value)
+    VALUES (quest_record.user_id, quest_record.primary_stat, 1)
+    ON CONFLICT (user_id, stat_name) DO UPDATE SET
+      stat_value = user_stats.stat_value + 1,
+      updated_at = NOW();
+  END IF;
   
   -- Return completion result
   RETURN json_build_object(
@@ -207,8 +249,102 @@ BEGIN
     'new_total_xp', user_record.total_xp + quest_record.xp_reward,
     'old_level', old_level,
     'new_level', new_level,
-    'level_up', level_up
+    'level_up', level_up,
+    'stat_improved', quest_record.primary_stat
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to safely create quests (prevents duplicates)
+CREATE OR REPLACE FUNCTION public.create_quest_safe(
+  p_user_id UUID,
+  p_title VARCHAR,
+  p_description TEXT,
+  p_original_task VARCHAR,
+  p_xp_reward INTEGER DEFAULT 50,
+  p_difficulty VARCHAR DEFAULT 'medium',
+  p_category VARCHAR DEFAULT 'general',
+  p_primary_stat VARCHAR DEFAULT 'strength'
+)
+RETURNS JSON AS $$
+DECLARE
+  new_quest_id UUID;
+  existing_quest_id UUID;
+  result_quest JSON;
+BEGIN
+  -- Check if user already has active quest with same original task
+  SELECT id INTO existing_quest_id 
+  FROM public.quests 
+  WHERE user_id = p_user_id 
+    AND original_task = p_original_task 
+    AND status = 'active';
+  
+  IF existing_quest_id IS NOT NULL THEN
+    -- Return existing quest instead of creating duplicate
+    SELECT row_to_json(q) INTO result_quest
+    FROM (
+      SELECT * FROM public.quests WHERE id = existing_quest_id
+    ) q;
+    
+    RETURN json_build_object(
+      'success', true,
+      'quest', result_quest,
+      'was_existing', true,
+      'message', 'Quest already exists'
+    );
+  END IF;
+  
+  -- Create new quest
+  INSERT INTO public.quests (
+    user_id, title, description, original_task, 
+    xp_reward, difficulty, category, status, primary_stat
+  ) VALUES (
+    p_user_id, p_title, p_description, p_original_task,
+    p_xp_reward, p_difficulty, p_category, 'active', p_primary_stat
+  ) RETURNING id INTO new_quest_id;
+  
+  -- Get the created quest
+  SELECT row_to_json(q) INTO result_quest
+  FROM (
+    SELECT * FROM public.quests WHERE id = new_quest_id
+  ) q;
+  
+  RETURN json_build_object(
+    'success', true,
+    'quest', result_quest,
+    'was_existing', false,
+    'message', 'Quest created successfully'
+  );
+  
+EXCEPTION 
+  WHEN unique_violation THEN
+    -- Handle race condition - try to get existing quest
+    SELECT id INTO existing_quest_id 
+    FROM public.quests 
+    WHERE user_id = p_user_id 
+      AND original_task = p_original_task 
+      AND status = 'active';
+    
+    IF existing_quest_id IS NOT NULL THEN
+      SELECT row_to_json(q) INTO result_quest
+      FROM (
+        SELECT * FROM public.quests WHERE id = existing_quest_id
+      ) q;
+      
+      RETURN json_build_object(
+        'success', true,
+        'quest', result_quest,
+        'was_existing', true,
+        'message', 'Quest already exists (race condition handled)'
+      );
+    ELSE
+      -- If we still can't find it, re-raise the error
+      RAISE;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute permissions
+GRANT EXECUTE ON FUNCTION public.complete_quest TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_quest_safe TO authenticated;
 `;

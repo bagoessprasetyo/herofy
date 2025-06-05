@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sword, Star, CheckCircle, Clock, Zap, Crown, Flame, Trophy } from 'lucide-react';
+import { Sword, Star, CheckCircle, Clock, Zap, Crown, Flame, Trophy, TrendingUp } from 'lucide-react';
 import { Quest } from '@/src/types/database';
-import { getDifficultyColor, getDifficultyIcon } from '@/src/lib/ai-quest-generator';
+import { getDifficultyColor, getStatInfo } from '@/lib/quest-utils';
 
 interface QuestCardProps {
   quest: Quest;
@@ -41,7 +41,7 @@ export function QuestCard({ quest, onComplete, onDelete }: QuestCardProps) {
     }
   };
 
-  const getDifficultyIcon = (difficulty: string) => {
+  const getDifficultyIconLocal = (difficulty: string) => {
     switch (difficulty) {
       case 'easy': return <Zap className="w-4 h-4" />;
       case 'medium': return <Star className="w-4 h-4" />;
@@ -65,6 +65,7 @@ export function QuestCard({ quest, onComplete, onDelete }: QuestCardProps) {
   };
 
   const difficultyColor = getDifficultyColor(quest.difficulty);
+  const statInfo = getStatInfo(quest.primary_stat || 'strength');
 
   if (showReflection) {
     return (
@@ -98,7 +99,7 @@ export function QuestCard({ quest, onComplete, onDelete }: QuestCardProps) {
               ) : (
                 <>
                   <Trophy className="w-4 h-4" />
-                  Claim Victory (+{quest.xp_reward} XP)
+                  Claim Victory (+{quest.xp_reward} XP + {statInfo.icon})
                 </>
               )}
             </button>
@@ -123,17 +124,21 @@ export function QuestCard({ quest, onComplete, onDelete }: QuestCardProps) {
       whileHover={{ scale: 1.02 }}
     >
       <div className="text-white">
-        {/* Header with category and difficulty */}
+        {/* Header with category, difficulty, and stat */}
         <div className="flex justify-between items-start mb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-lg">{getCategoryIcon(quest.category)}</span>
             <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded-full">
               {quest.category}
             </span>
+            <span className="text-xs font-medium bg-green-500/20 px-2 py-1 rounded-full flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              {statInfo.icon} {statInfo.name}
+            </span>
           </div>
           
           <div className="flex items-center gap-1 text-yellow-300">
-            {getDifficultyIcon(quest.difficulty)}
+            {getDifficultyIconLocal(quest.difficulty)}
             <span className="text-xs font-medium capitalize">{quest.difficulty}</span>
           </div>
         </div>
@@ -153,6 +158,33 @@ export function QuestCard({ quest, onComplete, onDelete }: QuestCardProps) {
           Original task: {quest.original_task}
         </p>
 
+        {/* Stat Improvement Info */}
+        {quest.status === 'active' && (
+          <div className="bg-white/10 rounded-lg p-3 mb-4">
+            <div className="flex items-center gap-2 text-sm">
+              <TrendingUp className="w-4 h-4 text-green-300" />
+              <span className="text-green-300 font-medium">
+                Completing this quest will improve your {statInfo.name} {statInfo.icon}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Completion Info for completed quests */}
+        {quest.status === 'completed' && quest.completed_at && (
+          <div className="bg-green-500/20 rounded-lg p-3 mb-4">
+            <div className="flex items-center gap-2 text-sm">
+              <CheckCircle className="w-4 h-4 text-green-300" />
+              <span className="text-green-300 font-medium">
+                Completed! Your {statInfo.name} {statInfo.icon} increased by +1
+              </span>
+            </div>
+            <div className="text-xs text-green-200 mt-1">
+              Completed on {new Date(quest.completed_at).toLocaleDateString()}
+            </div>
+          </div>
+        )}
+
         {/* Action Area */}
         <div className="flex justify-between items-center">
           {/* XP Reward */}
@@ -165,7 +197,7 @@ export function QuestCard({ quest, onComplete, onDelete }: QuestCardProps) {
 
           {/* Actions */}
           <div className="flex gap-2">
-            {onDelete && (
+            {onDelete && quest.status === 'active' && (
               <button
                 onClick={() => onDelete(quest.id)}
                 className="px-3 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200 hover:text-white transition-colors text-sm"
@@ -174,20 +206,29 @@ export function QuestCard({ quest, onComplete, onDelete }: QuestCardProps) {
               </button>
             )}
             
-            <button
-              onClick={handleComplete}
-              disabled={isCompleting}
-              className="bg-green-500 hover:bg-green-600 disabled:opacity-50 px-6 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
-            >
-              {isCompleting ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4" />
-                  Complete Quest
-                </>
-              )}
-            </button>
+            {quest.status === 'active' && (
+              <button
+                onClick={handleComplete}
+                disabled={isCompleting}
+                className="bg-green-500 hover:bg-green-600 disabled:opacity-50 px-6 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors"
+              >
+                {isCompleting ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Complete Quest
+                  </>
+                )}
+              </button>
+            )}
+
+            {quest.status === 'completed' && (
+              <div className="bg-green-500/20 px-6 py-2 rounded-lg font-semibold flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-green-300" />
+                <span className="text-green-300">Completed!</span>
+              </div>
+            )}
           </div>
         </div>
 

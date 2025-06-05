@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Quest } from '@/types/database';
 import { db } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { getStatInfo } from '@/lib/quest-utils';
 import toast from 'react-hot-toast';
 
 interface UseQuestsReturn {
@@ -67,10 +68,18 @@ export function useQuests(): UseQuestsReturn {
       });
 
       if (error) {
-        throw new Error(error.message || 'Failed to create quest');
+        // Handle specific error cases
+        if (error.message?.includes('already exists') || error.message?.includes('duplicate')) {
+          toast.error('You already have a quest for this task!');
+          // Refresh quests to show the existing one
+          await loadQuests();
+          return null;
+        }
+        throw error;
       }
 
       if (quest) {
+        // Add the new quest to the local state
         setQuests(prev => [quest, ...prev]);
         return quest;
       }
@@ -102,18 +111,22 @@ export function useQuests(): UseQuestsReturn {
           )
         );
 
-        // Show appropriate success message
+        // Show appropriate success message with stat info
         const xpGained = result.xp_awarded;
         const leveledUp = result.level_up;
+        const statImproved = result.stat_improved;
+        const statInfo = getStatInfo(statImproved);
 
         if (leveledUp) {
-          toast.success(`🎊 LEVEL UP! You're now level ${result.new_level}! (+${xpGained} XP)`, {
-            duration: 6000,
-          });
+          toast.success(
+            `🎊 LEVEL UP! You're now level ${result.new_level}! (+${xpGained} XP, +1 ${statInfo.name} ${statInfo.icon})`, 
+            { duration: 8000 }
+          );
         } else {
-          toast.success(`⚡ Quest Complete! +${xpGained} XP`, {
-            duration: 4000,
-          });
+          toast.success(
+            `⚡ Quest Complete! +${xpGained} XP, +1 ${statInfo.name} ${statInfo.icon}`, 
+            { duration: 5000 }
+          );
         }
 
         return true;
