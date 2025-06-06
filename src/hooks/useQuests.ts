@@ -19,15 +19,20 @@ interface UseQuestsReturn {
 }
 
 export function useQuests(): UseQuestsReturn {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth(); // 🔧 Track auth loading state
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadQuests = useCallback(async () => {
+    // 🔧 KEY FIX: Don't clear quests if auth is still loading
     if (!user) {
-      setQuests([]);
-      setLoading(false);
+      if (!authLoading) {
+        // Only clear quests if auth has finished loading and there's no user
+        setQuests([]);
+        setLoading(false);
+      }
+      // If auth is still loading, keep current loading state
       return;
     }
 
@@ -49,7 +54,7 @@ export function useQuests(): UseQuestsReturn {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]); // 🔧 Add authLoading as dependency
 
   useEffect(() => {
     loadQuests();

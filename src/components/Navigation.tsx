@@ -88,6 +88,17 @@ export function Navigation() {
                   <BarChart3 className="w-4 h-4 mr-2" />
                   Profile
                 </Link>
+                <Link
+                    href="/leaderboard"
+                    className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
+                        isActive('/leaderboard')
+                        ? 'border-blue-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                    >
+                    <Trophy className="w-4 h-4 mr-2" />
+                    Leaderboard
+                </Link>
               </div>
             )}
           </div>
@@ -268,7 +279,18 @@ export function Navigation() {
                     <BarChart3 className="w-5 h-5 mr-3" />
                     Profile
                   </Link>
-
+                  <Link
+                    href="/leaderboard"
+                    onClick={closeMenu}
+                    className={`flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                        isActive('/leaderboard')
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                    >
+                    <Trophy className="w-5 h-5 mr-3" />
+                    Leaderboard
+                    </Link>
                   {/* Quick Actions - Mobile */}
                   <div className="border-t border-gray-100 pt-2 mt-2">
                     <Link

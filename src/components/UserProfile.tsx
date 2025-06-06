@@ -12,7 +12,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { User } from '../types/database';
-// import { User } from '@/types/database';
+import { useUserStats } from '@/src/hooks/useUserStats';
 
 interface UserProfileProps {
   user: User;
@@ -20,6 +20,8 @@ interface UserProfileProps {
 }
 
 export function UserProfile({ user, className = '' }: UserProfileProps) {
+  const { stats, loading: statsLoading } = useUserStats();
+
   // Calculate XP progress to next level
   const currentLevelXP = (user.level - 1) * 1000;
   const nextLevelXP = user.level * 1000;
@@ -27,32 +29,27 @@ export function UserProfile({ user, className = '' }: UserProfileProps) {
   const neededXP = nextLevelXP - currentLevelXP;
   const progressPercentage = (progressXP / neededXP) * 100;
 
-  const stats = [
-    {
-      name: 'Strength',
-      value: user.level + Math.floor(user.total_xp / 500),
-      icon: <Sword className="w-4 h-4" />,
-      color: 'text-red-600 bg-red-100'
-    },
-    {
-      name: 'Wisdom',
-      value: user.level + Math.floor(user.total_xp / 600),
-      icon: <Brain className="w-4 h-4" />,
-      color: 'text-blue-600 bg-blue-100'
-    },
-    {
-      name: 'Endurance',
-      value: user.level + Math.floor(user.total_xp / 700),
-      icon: <Heart className="w-4 h-4" />,
-      color: 'text-green-600 bg-green-100'
-    },
-    {
-      name: 'Charisma',
-      value: user.level + Math.floor(user.total_xp / 800),
-      icon: <Users className="w-4 h-4" />,
-      color: 'text-yellow-600 bg-yellow-100'
+  // Map stats to include icons for display
+  const statsWithIcons = stats.map(stat => {
+    let icon;
+    switch (stat.name) {
+      case 'Strength':
+        icon = <Sword className="w-4 h-4" />;
+        break;
+      case 'Wisdom':
+        icon = <Brain className="w-4 h-4" />;
+        break;
+      case 'Endurance':
+        icon = <Heart className="w-4 h-4" />;
+        break;
+      case 'Charisma':
+        icon = <Users className="w-4 h-4" />;
+        break;
+      default:
+        icon = <TrendingUp className="w-4 h-4" />;
     }
-  ];
+    return { ...stat, iconComponent: icon };
+  });
 
   return (
     <motion.div
@@ -114,29 +111,45 @@ export function UserProfile({ user, className = '' }: UserProfileProps) {
           <TrendingUp className="w-4 h-4" />
           Character Stats
         </h4>
-        <div className="grid grid-cols-2 gap-3">
-          {stats.map((stat, index) => (
-            <motion.div
-              key={stat.name}
-              className="bg-gray-50 rounded-lg p-3"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 * index, duration: 0.3 }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <div className={`p-1 rounded ${stat.color}`}>
-                  {stat.icon}
+        
+        {statsLoading ? (
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-gray-50 rounded-lg p-3 animate-pulse">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 bg-gray-300 rounded"></div>
+                  <div className="w-16 h-3 bg-gray-300 rounded"></div>
                 </div>
-                <span className="text-xs font-medium text-gray-700">
-                  {stat.name}
-                </span>
+                <div className="w-8 h-6 bg-gray-300 rounded"></div>
               </div>
-              <div className="text-xl font-bold text-gray-900">
-                {stat.value}
-              </div>
-            </motion.div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {statsWithIcons.map((stat, index) => (
+              <motion.div
+                key={stat.name}
+                className="bg-gray-50 rounded-lg p-3"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.1 * index, duration: 0.3 }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <div className={`p-1 rounded ${stat.color}`}>
+                    {stat.iconComponent}
+                  </div>
+                  <span className="text-xs font-medium text-gray-700">
+                    {stat.name}
+                  </span>
+                </div>
+                <div className="text-xl font-bold text-gray-900 flex items-center gap-1">
+                  {stat.value}
+                  <span className="text-sm">{stat.icon}</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Footer */}

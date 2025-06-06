@@ -36,7 +36,26 @@ function DashboardContent() {
 
   const [showCreator, setShowCreator] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('active');
-
+  const isSameDay = (date1: Date, date2: Date): boolean => {
+    return date1.getFullYear() === date2.getFullYear() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getDate() === date2.getDate();
+  };
+  
+  const isToday = (date: Date): boolean => {
+    const today = new Date();
+    return isSameDay(date, today);
+  };
+  
+  // 🔧 NEW: Add this UTC-aware date parser
+  const parseUTCDate = (dateString: string): Date => {
+    // If the date string doesn't end with 'Z', it's stored as UTC but doesn't specify timezone
+    // We need to append 'Z' to tell JavaScript it's UTC
+    if (!dateString.endsWith('Z') && !dateString.includes('+')) {
+      return new Date(dateString + 'Z');
+    }
+    return new Date(dateString);
+  };
   // Check if we should show creator from URL params
   useEffect(() => {
     if (searchParams.get('create') === 'true') {
@@ -52,6 +71,8 @@ function DashboardContent() {
     }
   };
 
+  
+
   const handleQuestCompleted = async (questId: string) => {
     const success = await completeQuest(questId);
     if (success) {
@@ -66,6 +87,8 @@ function DashboardContent() {
   const handleQuestDeleted = async (questId: string) => {
     await deleteQuest(questId);
   };
+
+  
 
   // Show loading state while auth is loading
   if (authLoading) {
@@ -108,14 +131,26 @@ function DashboardContent() {
                         filter === 'active' ? activeQuests : 
                         completedQuests;
 
-  const totalXPToday = completedQuests
+    const totalXPToday = completedQuests
     .filter(q => {
-      if (!q.completed_at) return false;
-      const completedDate = new Date(q.completed_at);
-      const today = new Date();
-      return completedDate.toDateString() === today.toDateString();
+        if (!q.completed_at) return false;
+        const completedDate = parseUTCDate(q.completed_at); // 🔧 Use parseUTCDate
+        return isToday(completedDate);
     })
     .reduce((total, quest) => total + quest.xp_reward, 0);
+    
+    const completedTodayCount = completedQuests.filter(q => {
+    if (!q.completed_at) return false;
+    const completedDate = parseUTCDate(q.completed_at); // 🔧 Use parseUTCDate
+    return isToday(completedDate);
+    }).length;
+
+    // console.log('Debug - Quest times:', completedQuests.map(q => ({
+    //     title: q.title,
+    //     completed_at: q.completed_at,
+    //     isToday: q.completed_at ? isToday(new Date(q.completed_at)) : false
+    //   })));
+    //   console.log('Debug - Today counts:', { completedTodayCount, totalXPToday });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -162,12 +197,7 @@ function DashboardContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Completed Today</p>
-                    <p className="text-3xl font-bold text-gray-900">{completedQuests.filter(q => {
-                      if (!q.completed_at) return false;
-                      const completedDate = new Date(q.completed_at);
-                      const today = new Date();
-                      return completedDate.toDateString() === today.toDateString();
-                    }).length}</p>
+                    <p className="text-3xl font-bold text-gray-900">{completedTodayCount}</p>
                   </div>
                   <div className="p-3 bg-green-100 rounded-lg">
                     <CheckCircle className="w-6 h-6 text-green-600" />
@@ -366,12 +396,7 @@ function DashboardContent() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-purple-100">Quests Completed</span>
-                    <span className="font-bold">{completedQuests.filter(q => {
-                      if (!q.completed_at) return false;
-                      const completedDate = new Date(q.completed_at);
-                      const today = new Date();
-                      return completedDate.toDateString() === today.toDateString();
-                    }).length}</span>
+                    <span className="font-bold">{completedTodayCount}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-purple-100">XP Earned</span>
