@@ -3,7 +3,9 @@ import { Quest } from '@/types/database';
 import { db } from '@/lib/supabase';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { getStatInfo } from '@/lib/quest-utils';
+// import { useAchievements } from '@/hooks/useAchievements';
 import toast from 'react-hot-toast';
+import { useAchievements } from './useAchievements';
 
 interface UseQuestsReturn {
   quests: Quest[];
@@ -20,6 +22,7 @@ interface UseQuestsReturn {
 
 export function useQuests(): UseQuestsReturn {
   const { user, loading: authLoading } = useAuth(); // 🔧 Track auth loading state
+  const { checkForNewAchievements } = useAchievements();
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,11 +104,11 @@ export function useQuests(): UseQuestsReturn {
   const completeQuest = async (questId: string): Promise<boolean> => {
     try {
       const { result, error } = await db.completeQuest(questId);
-
+  
       if (error) {
         throw new Error(error.message || 'Failed to complete quest');
       }
-
+  
       if (result?.success) {
         // Update local state
         setQuests(prev =>
@@ -115,13 +118,16 @@ export function useQuests(): UseQuestsReturn {
               : quest
           )
         );
-
+  
+        // 🎉 NEW: Check for achievements after quest completion
+        const newAchievements = await checkForNewAchievements();
+  
         // Show appropriate success message with stat info
         const xpGained = result.xp_awarded;
         const leveledUp = result.level_up;
         const statImproved = result.stat_improved;
         const statInfo = getStatInfo(statImproved);
-
+  
         if (leveledUp) {
           toast.success(
             `🎊 LEVEL UP! You're now level ${result.new_level}! (+${xpGained} XP, +1 ${statInfo.name} ${statInfo.icon})`, 
@@ -133,10 +139,18 @@ export function useQuests(): UseQuestsReturn {
             { duration: 5000 }
           );
         }
-
+  
+        // 🎉 Show achievement toast if any were unlocked
+        if (newAchievements.length > 0) {
+          toast.success(
+            `🏆 ${newAchievements.length} Achievement${newAchievements.length > 1 ? 's' : ''} Unlocked!`, 
+            { duration: 6000 }
+          );
+        }
+  
         return true;
       }
-
+  
       return false;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to complete quest';

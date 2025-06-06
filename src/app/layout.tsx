@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 import { AuthHandler } from '@/components/AuthHandler';
 import { Navigation } from '@/components/Navigation';
+import { AchievementManager } from '../components/AchievementManager';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -199,6 +200,7 @@ export default function RootLayout({
               },
             }}
           />
+          <AchievementManager />
         </AuthProvider>
       </body>
     </html>

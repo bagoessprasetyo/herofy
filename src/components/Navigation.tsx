@@ -14,7 +14,8 @@ import {
   Trophy,
   BarChart3,
   Home,
-  Plus
+  Plus,
+  Award // 🎉 NEW: Import for achievements icon
 } from 'lucide-react';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -76,6 +77,19 @@ export function Navigation() {
                   <Sword className="w-4 h-4 mr-2" />
                   Quests
                 </Link>
+
+                {/* 🎉 NEW: Achievements Navigation Link */}
+                <Link
+                  href="/achievements"
+                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
+                    isActive('/achievements')
+                      ? 'border-yellow-500 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Award className="w-4 h-4 mr-2" />
+                  Achievements
+                </Link>
                 
                 <Link
                   href="/profile"
@@ -88,16 +102,17 @@ export function Navigation() {
                   <BarChart3 className="w-4 h-4 mr-2" />
                   Profile
                 </Link>
+                
                 <Link
-                    href="/leaderboard"
-                    className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
-                        isActive('/leaderboard')
-                        ? 'border-blue-500 text-gray-900'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                    >
-                    <Trophy className="w-4 h-4 mr-2" />
-                    Leaderboard
+                  href="/leaderboard"
+                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
+                    isActive('/leaderboard')
+                      ? 'border-blue-500 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Trophy className="w-4 h-4 mr-2" />
+                  Leaderboard
                 </Link>
               </div>
             )}
@@ -161,6 +176,16 @@ export function Navigation() {
                         >
                           <User className="w-4 h-4 mr-3" />
                           Profile & Stats
+                        </Link>
+
+                        {/* 🎉 NEW: Achievements in user menu */}
+                        <Link
+                          href="/achievements"
+                          onClick={closeMenu}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          <Award className="w-4 h-4 mr-3" />
+                          Achievements
                         </Link>
                         
                         <Link
@@ -266,6 +291,20 @@ export function Navigation() {
                     <Sword className="w-5 h-5 mr-3" />
                     Quests
                   </Link>
+
+                  {/* 🎉 NEW: Achievements in mobile menu */}
+                  <Link
+                    href="/achievements"
+                    onClick={closeMenu}
+                    className={`flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                      isActive('/achievements')
+                        ? 'bg-yellow-50 text-yellow-700'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <Award className="w-5 h-5 mr-3" />
+                    Achievements
+                  </Link>
                   
                   <Link
                     href="/profile"
@@ -279,18 +318,20 @@ export function Navigation() {
                     <BarChart3 className="w-5 h-5 mr-3" />
                     Profile
                   </Link>
+                  
                   <Link
                     href="/leaderboard"
                     onClick={closeMenu}
                     className={`flex items-center px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                        isActive('/leaderboard')
+                      isActive('/leaderboard')
                         ? 'bg-blue-50 text-blue-700'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
-                    >
+                  >
                     <Trophy className="w-5 h-5 mr-3" />
                     Leaderboard
-                    </Link>
+                  </Link>
+
                   {/* Quick Actions - Mobile */}
                   <div className="border-t border-gray-100 pt-2 mt-2">
                     <Link
