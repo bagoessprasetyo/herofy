@@ -1,4 +1,7 @@
+// src/lib/supabase.ts - Updated server client function
 import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -16,17 +19,30 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// Server-side client for API routes
+// Server-side client for API routes - FIXED VERSION
 export const createServerSupabaseClient = () => {
-  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
+  const cookieStore = cookies();
+
+  return createServerClient<Database>(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
 };
 
-// Enhanced types for our application
+// Rest of your existing Database interface and helper functions...
 export interface Database {
   public: {
     Tables: {
@@ -78,7 +94,7 @@ export interface Database {
           created_at: string;
         };
         Insert: {
-          id?: string; // Make ID optional so database can generate it
+          id?: string;
           user_id: string;
           title: string;
           description?: string | null;
@@ -129,6 +145,77 @@ export interface Database {
           updated_at?: string;
         };
       };
+      // Add achievements tables
+      achievements: {
+        Row: {
+          id: string;
+          key: string;
+          title: string;
+          description: string;
+          icon: string;
+          category: string;
+          tier: 'bronze' | 'silver' | 'gold' | 'platinum' | 'legendary';
+          xp_reward: number;
+          stat_bonus_type: string | null;
+          stat_bonus_amount: number | null;
+          is_hidden: boolean;
+          display_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          key: string;
+          title: string;
+          description: string;
+          icon: string;
+          category: string;
+          tier: 'bronze' | 'silver' | 'gold' | 'platinum' | 'legendary';
+          xp_reward: number;
+          stat_bonus_type?: string | null;
+          stat_bonus_amount?: number | null;
+          is_hidden?: boolean;
+          display_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          key?: string;
+          title?: string;
+          description?: string;
+          icon?: string;
+          category?: string;
+          tier?: 'bronze' | 'silver' | 'gold' | 'platinum' | 'legendary';
+          xp_reward?: number;
+          stat_bonus_type?: string | null;
+          stat_bonus_amount?: number | null;
+          is_hidden?: boolean;
+          display_order?: number;
+          created_at?: string;
+        };
+      };
+      user_achievements: {
+        Row: {
+          id: string;
+          user_id: string;
+          achievement_id: string;
+          unlocked_at: string;
+          progress: any; // JSON field
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          achievement_id: string;
+          unlocked_at?: string;
+          progress?: any;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          achievement_id?: string;
+          unlocked_at?: string;
+          progress?: any;
+        };
+      };
     };
     Functions: {
       complete_quest: {
@@ -162,6 +249,18 @@ export interface Database {
           was_existing: boolean;
           message: string;
         };
+      };
+      get_user_achievements: {
+        Args: {
+          p_user_id: string;
+        };
+        Returns: any; // JSON response
+      };
+      check_and_award_achievements: {
+        Args: {
+          p_user_id: string;
+        };
+        Returns: any; // JSON response
       };
     };
   };
